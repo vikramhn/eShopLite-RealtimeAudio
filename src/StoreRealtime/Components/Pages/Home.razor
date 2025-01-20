@@ -1,0 +1,136 @@
+﻿@page "/"
+@using OpenAI.Chat
+@using OpenAI.RealtimeConversation
+@using System.IO.Pipelines
+@using StoreRealtime.ContextManagers
+@using StoreRealtime.Models
+@implements IDisposable
+@inject RealtimeConversationClient RealtimeConversationClient
+@inject ContosoProductContext contosoProductContext
+@inject ILogger<Program> logger
+@inject IJSRuntime JSRuntime
+@inject IJSRuntime JS
+
+<PageTitle>eShopLite - Realtime chat support</PageTitle>
+
+@* AUDIO DEVICES *@
+<Microphone OnMicAvailable="@OnMicAvailable" />
+<Speaker @ref="@speaker" />
+
+
+<div class="net-brand-page">
+    <div class="main-content" @ref="mainContentSection">
+
+        @* CHAT SECTION *@
+        <div class="chat-section">
+            <div class="messages">
+                @foreach (var chatMessage in chatMessages)
+                {
+                    var messageStyle = "message message-user visible";
+                    var messageUserStyle = "message-text message-user-text";
+                    var senderName = "";
+                    if (chatMessage.IsUser)
+                    {
+                        messageStyle = "message message-user visible";
+                        senderName = "You";
+                        messageUserStyle = "message-text message-user-text";
+                    }
+                    else
+                    {
+                        messageStyle = "message message-assistant visible";
+                        senderName = "Assistant";
+                        messageUserStyle = "message-text";
+                    }
+                    <div class="@messageStyle">
+                        <div class="sender-name">@senderName</div>
+                        <div class="message-content">
+                            <div class="@messageUserStyle">@chatMessage.Message</div>
+                            <div class="message-time">@chatMessage.Timestamp.ToString("G")</div>
+                        </div>
+                    </div>
+
+                }
+            </div>
+        </div>
+
+        @* INFORMATION LOG SECTION *@
+        <div class="info-log-section">
+            <h4>Information Log</h4>
+            <ul class="info-log" @ref="infoLog">
+                @foreach (var message in messages)
+                {
+                    <li>@message</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+    ConversationManager? conversationManager;
+    CancellationTokenSource disposalCts = new();
+    Speaker? speaker;
+    List<string> messages = new();
+    List<RealtimeChatMessage> chatMessages = new();
+    private ElementReference infoLog;
+    private ElementReference mainContentSection;
+
+    private void OnMicAvailable(PipeReader micReader)
+    {
+        conversationManager = new(RealtimeConversationClient, contosoProductContext, logger);
+        _ = RunAsBackgroundTask(() => conversationManager.RunAsync(micReader.AsStream(), speaker!,
+        AddMessageAsync, AddChatMessageAsync, disposalCts.Token));
+    }
+
+    public void Dispose()
+    {
+        disposalCts.Cancel();
+        conversationManager?.Dispose();
+    }
+
+    private async Task AddChatMessageAsync(string message, bool isUserMessage)
+    {
+        await InvokeAsync(() =>
+        {
+            var cm = new RealtimeChatMessage()
+                {
+                    Message = message,
+                    IsUser = isUserMessage
+                };
+            chatMessages.Add(cm);
+            StateHasChanged();
+            ScrollToBottom(mainContentSection);
+        });
+    }
+
+    private async Task AddMessageAsync(string message)
+    {
+        await InvokeAsync(() =>
+        {
+            messages.Add(message);
+            StateHasChanged();
+        });
+    }
+
+    private Task RunAsBackgroundTask(Func<Task> work)
+    {
+        return Task.Run(async () =>
+        {
+            try
+            {
+                await work();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _ = DispatchExceptionAsync(ex);
+            }
+        });
+    }
+
+    private void ScrollToBottom(ElementReference element)
+    {
+        _ = JSRuntime.InvokeVoidAsync("scrollToBottom", element);
+    }
+}
+
+<link rel="stylesheet" href="css/chat.css" />
