@@ -17,7 +17,6 @@
 <Microphone OnMicAvailable="@OnMicAvailable" />
 <Speaker @ref="@speaker" />
 
-
 <div class="net-brand-page">
     <div class="main-content" @ref="mainContentSection">
 
@@ -26,21 +25,10 @@
             <div class="messages">
                 @foreach (var chatMessage in chatMessages)
                 {
-                    var messageStyle = "message message-user visible";
-                    var messageUserStyle = "message-text message-user-text";
-                    var senderName = "";
-                    if (chatMessage.IsUser)
-                    {
-                        messageStyle = "message message-user visible";
-                        senderName = "You";
-                        messageUserStyle = "message-text message-user-text";
-                    }
-                    else
-                    {
-                        messageStyle = "message message-assistant visible";
-                        senderName = "Assistant";
-                        messageUserStyle = "message-text";
-                    }
+                    var messageStyle = chatMessage.IsUser ? "message message-user visible" : "message message-assistant visible";
+                    var messageUserStyle = chatMessage.IsUser ? "message-text message-user-text" : "message-text";
+                    var senderName = chatMessage.IsUser ? "You" : "Assistant";
+
                     <div class="@messageStyle">
                         <div class="sender-name">@senderName</div>
                         <div class="message-content">
@@ -48,7 +36,6 @@
                             <div class="message-time">@chatMessage.Timestamp.ToString("G")</div>
                         </div>
                     </div>
-
                 }
             </div>
         </div>
@@ -67,11 +54,11 @@
 </div>
 
 @code {
-    ConversationManager? conversationManager;
-    CancellationTokenSource disposalCts = new();
-    Speaker? speaker;
-    List<LogMessage> messages = new();
-    List<RealtimeChatMessage> chatMessages = new();
+    private ConversationManager? conversationManager;
+    private readonly CancellationTokenSource disposalCts = new();
+    private Speaker? speaker;
+    private readonly List<LogMessage> messages = new();
+    private readonly List<RealtimeChatMessage> chatMessages = new();
     private ElementReference mainContentSection;
 
     private void OnMicAvailable(PipeReader micReader)
@@ -89,26 +76,20 @@
 
     private async Task AddChatMessageAsync(string message, bool isUserMessage)
     {
-        await InvokeAsync(() =>
-        {
-            var cm = new RealtimeChatMessage()
-                {
-                    Message = message,
-                    IsUser = isUserMessage
-                };
-            chatMessages.Add(cm);
-            StateHasChanged();
-            ScrollToBottom(mainContentSection);
-        });
+        var cm = new RealtimeChatMessage
+            {
+                Message = message,
+                IsUser = isUserMessage
+            };
+        chatMessages.Add(cm);
+        await InvokeAsync(StateHasChanged);
+        ScrollToBottom(mainContentSection);
     }
 
     private async Task AddMessageAsync(string message)
     {
-        await InvokeAsync(() =>
-        {
-            messages.Add(new LogMessage(message));
-            StateHasChanged();
-        });
+        messages.Add(new LogMessage(message));
+        await InvokeAsync(StateHasChanged);
     }
 
     private Task RunAsBackgroundTask(Func<Task> work)
