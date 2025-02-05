@@ -24,8 +24,8 @@
 			}
 		}
 	},
-	"workspaceFolder": "/workspaces/eShopLite-SemanticSearch",  // Empty directory for clean testing
-	"onCreateCommand": "sudo chown -R vscode:vscode /workspaces/eShopLite-RealtimeAudio && dotnet new install Aspire.ProjectTemplates::*-*",
+	"workspaceFolder": "/workspaces/ESHOPLITE-SEMANTICSEARCH",  // Empty directory for clean testing
+	"onCreateCommand": "sudo chown -R vscode:vscode /workspaces/ESHOPLITE-SEMANTICSEARCH && dotnet new install Aspire.ProjectTemplates::*-*",
 	"postStartCommand": "dotnet dev-certs https --trust",
 	"forwardPorts": []
 }
